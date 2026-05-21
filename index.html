@@ -1,23 +1,1114 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="1671.5">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 20.0px; font: 17.0px Times; color: #eae96f; -webkit-text-stroke: #eae96f}
-    span.s1 {font-kerning: none}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shortcut Forge — AI Siri Shortcuts Builder</title>
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --surface2: #f5f5f7;
+      --text: #1d1d1f;
+      --text2: #6e6e73;
+      --text3: #aeaeb2;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --accent-light: rgba(0,113,227,0.1);
+      --border: #d2d2d7;
+      --radius: 14px;
+      --shadow: 0 2px 24px rgba(0,0,0,0.07);
+      --shadow-lg: 0 8px 48px rgba(0,0,0,0.12);
+      --success: #34c759;
+      --warning: #ff9f0a;
+      --danger: #ff3b30;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #000000;
+        --surface: #1c1c1e;
+        --surface2: #2c2c2e;
+        --text: #f5f5f7;
+        --text2: #98989d;
+        --text3: #636366;
+        --border: #38383a;
+        --accent-light: rgba(10,132,255,0.15);
+        --shadow: 0 2px 24px rgba(0,0,0,0.4);
+        --shadow-lg: 0 8px 48px rgba(0,0,0,0.6);
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+      padding: 48px 24px 64px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,113,227,0.3), transparent);
+    }
+    .header-content { position: relative; z-index: 1; }
+    .app-icon {
+      width: 72px; height: 72px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #0071e3, #5856d6);
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px rgba(0,113,227,0.4);
+    }
+    .app-icon svg { width: 40px; height: 40px; }
+    .header h1 {
+      font-size: 36px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+    .header h1 span { color: #64d2ff; }
+    .header p {
+      color: rgba(255,255,255,0.65);
+      font-size: 17px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── Main container ── */
+    .container {
+      max-width: 760px;
+      margin: -32px auto 64px;
+      padding: 0 20px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    /* ── API Key section ── */
+    .api-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+      gap: 12px;
+    }
+    .api-toggle:hover { background: var(--surface2); }
+    .api-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+    .api-badge.set { background: rgba(52,199,89,0.12); color: var(--success); }
+    .api-label {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+    .api-chevron {
+      color: var(--text3);
+      transition: transform 0.2s;
+    }
+    .api-chevron.open { transform: rotate(180deg); }
+
+    .api-body {
+      padding: 0 20px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, padding 0.25s;
+    }
+    .api-body.open {
+      max-height: 200px;
+      padding: 0 20px 20px;
+    }
+    .api-note {
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .api-note a { color: var(--accent); text-decoration: none; }
+    .api-row { display: flex; gap: 8px; }
+    .api-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: 'SF Mono', 'Menlo', monospace;
+      background: var(--surface2);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .api-input:focus { border-color: var(--accent); }
+    .api-input::placeholder { color: var(--text3); font-family: -apple-system, sans-serif; }
+    .btn-save {
+      padding: 10px 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-save:hover { background: var(--accent-hover); }
+
+    /* ── Input section ── */
+    .input-card { padding: 24px; }
+    .input-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 10px;
+    }
+    .shortcut-input {
+      width: 100%;
+      min-height: 120px;
+      padding: 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: inherit;
+      background: var(--surface2);
+      color: var(--text);
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+    .shortcut-input:focus { border-color: var(--accent); }
+    .shortcut-input::placeholder { color: var(--text3); }
+
+    .examples-label {
+      font-size: 13px;
+      color: var(--text2);
+      margin: 14px 0 8px;
+    }
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .example-chip {
+      padding: 6px 12px;
+      background: var(--accent-light);
+      color: var(--accent);
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .example-chip:hover {
+      background: var(--accent);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .btn-generate {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #0071e3, #5856d6);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: -0.2px;
+    }
+    .btn-generate:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── Status ── */
+    .status {
+      display: none;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 12px;
+      align-items: center;
+      gap: 10px;
+    }
+    .status.visible { display: flex; }
+    .status.loading { background: var(--accent-light); color: var(--accent); }
+    .status.error { background: rgba(255,59,48,0.1); color: var(--danger); }
+    .status.success { background: rgba(52,199,89,0.12); color: var(--success); }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result section ── */
+    .result-card {
+      display: none;
+      padding: 0;
+    }
+    .result-card.visible { display: block; }
+
+    .result-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .shortcut-icon {
+      width: 48px; height: 48px;
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .shortcut-meta { flex: 1; min-width: 0; }
+    .shortcut-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .shortcut-desc {
+      font-size: 13px;
+      color: var(--text2);
+      margin-top: 2px;
+    }
+
+    .result-body { padding: 16px 24px; }
+    .steps-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .steps { display: flex; flex-direction: column; gap: 8px; }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--surface2);
+      border-radius: 10px;
+    }
+    .step-num {
+      width: 24px; height: 24px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step-info { flex: 1; min-width: 0; }
+    .step-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .step-action {
+      font-size: 12px;
+      color: var(--text2);
+      font-family: 'SF Mono', 'Menlo', monospace;
+      margin-top: 2px;
+    }
+
+    .result-footer {
+      padding: 16px 24px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn-download {
+      flex: 1;
+      padding: 13px 20px;
+      background: var(--success);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.15s;
+      min-width: 160px;
+    }
+    .btn-download:hover { opacity: 0.88; }
+    .btn-regen {
+      padding: 13px 20px;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-regen:hover { background: var(--border); }
+
+    .import-hint {
+      padding: 12px 24px 20px;
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+    .import-hint strong { color: var(--text); }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+      .header { padding: 36px 20px 52px; }
+      .header h1 { font-size: 28px; }
+      .result-footer { flex-direction: column; }
+      .btn-download { min-width: unset; }
+    }
   </style>
 </head>
 <body>
-<p class="p1"><span class="s1">&lt;!DOCTYPE html&gt;</span></p>
-<p class="p1"><span class="s1">&lt;html&gt;</span></p>
-<p class="p1"><span class="s1">&lt;body&gt;</span></p>
-<p class="p1"><span class="s1">&lt;h1&gt;Hello World&lt;/h1&gt;</span></p>
-<p class="p1"><span class="s1">&lt;p&gt;I'm hosted with GitHub Pages.&lt;/p&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/body&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/html&gt;</span></p>
+
+<header class="header">
+  <div class="header-content">
+    <div class="app-icon">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 14C8 10.686 10.686 8 14 8h12c3.314 0 6 2.686 6 6v12c0 3.314-2.686 6-6 6H14c-3.314 0-6-2.686-6-6V14z" fill="rgba(255,255,255,0.15)"/>
+        <path d="M14 20h12M14 25h8M20 15l4 5-4 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="30" cy="10" r="6" fill="#64d2ff"/>
+        <path d="M28 10l1.5 1.5L33 8" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>Shortcut <span>Forge</span></h1>
+    <p>Describe any workflow in plain English — AI builds the Siri Shortcut for you.</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="api-toggle" id="apiToggle">
+      <span class="api-label">Anthropic API Key</span>
+      <span class="api-badge" id="apiBadge">Not set</span>
+      <svg class="api-chevron" id="apiChevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="api-body" id="apiBody">
+      <p class="api-note">
+        Your key is stored only in your browser (localStorage) and sent exclusively to Anthropic's API.
+        Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.
+      </p>
+      <div class="api-row">
+        <input class="api-input" id="apiKeyInput" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+        <button class="btn-save" id="saveKeyBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="card input-card">
+    <div class="input-label">Describe your shortcut</div>
+    <textarea
+      class="shortcut-input"
+      id="promptInput"
+      placeholder="e.g. When I tap this, ask me for a URL, open it in Safari, then copy the page title to my clipboard and show a notification."
+    ></textarea>
+    <p class="examples-label">Try an example:</p>
+    <div class="examples" id="examples"></div>
+    <button class="btn-generate" id="generateBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.22 4.22l1.42 1.42M12.36 12.36l1.42 1.42M4.22 13.78l1.42-1.42M12.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="9" cy="9" r="3" fill="currentColor" opacity="0.7"/>
+      </svg>
+      Generate Shortcut
+    </button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <!-- Result -->
+  <div class="card result-card" id="resultCard">
+    <div class="result-header">
+      <div class="shortcut-icon" id="shortcutIcon"></div>
+      <div class="shortcut-meta">
+        <div class="shortcut-name" id="shortcutName"></div>
+        <div class="shortcut-desc" id="shortcutDesc"></div>
+      </div>
+    </div>
+    <div class="result-body">
+      <div class="steps-label">Actions</div>
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="result-footer">
+      <button class="btn-download" id="downloadBtn">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 2v9M6 8l3 3 3-3M3 13v1a2 2 0 002 2h8a2 2 0 002-2v-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Download .shortcut
+      </button>
+      <button class="btn-regen" id="regenBtn">Regenerate</button>
+    </div>
+    <div class="import-hint">
+      <strong>How to import:</strong> AirDrop the file to your iPhone or iPad, or save it to iCloud Drive and tap it in the Files app. Tap <strong>Add Shortcut</strong> when prompted.
+    </div>
+  </div>
+
+</div>
+
+<footer>Shortcut Forge &mdash; Powered by Claude AI</footer>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+
+const EXAMPLES = [
+  "Save a webpage link with a custom title to my reading list and notify me",
+  "Ask for a phone number, format it, copy to clipboard, and open the Phone app",
+  "Translate whatever is on my clipboard to Spanish and share the result",
+  "Create a calendar event by asking for title, date, and notes",
+  "Log a daily mood 1-5 to a note in Apple Notes with the current date",
+  "Batch rename files: ask for a prefix, list files, rename them",
+  "Send a pre-written message to a contact and open Maps to their address",
+];
+
+const ICON_COLORS = {
+  blue:   { hex: '#0071e3', int: 463140863 },
+  purple: { hex: '#5856d6', int: 3789677567 },
+  red:    { hex: '#ff3b30', int: 4274264319 },
+  orange: { hex: '#ff9500', int: 4282601983 },
+  green:  { hex: '#34c759', int: 431817727 },
+  teal:   { hex: '#5ac8fa', int: 3233857535 },
+  pink:   { hex: '#ff2d55', int: 4251333631 },
+  gray:   { hex: '#8e8e93', int: 2846468607 },
+};
+
+const ICON_EMOJIS = {
+  star: '⭐', lightning: '⚡', list: '📋', calendar: '📅',
+  chat: '💬', phone: '📱', mail: '📧', camera: '📷',
+  music: '🎵', map: '🗺️', link: '🔗', file: '📄',
+  translate: '🌍', alarm: '⏰', note: '📝', share: '📤',
+};
+
+const ACTION_MAP = {
+  text:             { id: 'is.workflow.actions.gettext',          label: 'Text' },
+  show_result:      { id: 'is.workflow.actions.showresult',        label: 'Show Result' },
+  ask_input:        { id: 'is.workflow.actions.ask',               label: 'Ask for Input' },
+  get_clipboard:    { id: 'is.workflow.actions.getclipboard',      label: 'Get Clipboard' },
+  copy_clipboard:   { id: 'is.workflow.actions.setclipboard',      label: 'Copy to Clipboard' },
+  open_url:         { id: 'is.workflow.actions.openurl',           label: 'Open URL' },
+  get_url:          { id: 'is.workflow.actions.downloadurl',       label: 'Get Contents of URL' },
+  notification:     { id: 'is.workflow.actions.notification',      label: 'Show Notification' },
+  add_reminder:     { id: 'is.workflow.actions.addnewreminder',    label: 'Add Reminder' },
+  add_event:        { id: 'is.workflow.actions.addnewevent',       label: 'Add Calendar Event' },
+  open_app:         { id: 'is.workflow.actions.openapp',           label: 'Open App' },
+  share:            { id: 'is.workflow.actions.share',             label: 'Share' },
+  wait:             { id: 'is.workflow.actions.delay',             label: 'Wait' },
+  if:               { id: 'is.workflow.actions.conditional',       label: 'If' },
+  end_if:           { id: 'is.workflow.actions.conditional',       label: 'End If' },
+  repeat_start:     { id: 'is.workflow.actions.repeat.count',      label: 'Repeat' },
+  repeat_end:       { id: 'is.workflow.actions.repeat.count',      label: 'End Repeat' },
+  search_web:       { id: 'is.workflow.actions.searchWeb',         label: 'Search Web' },
+  send_message:     { id: 'is.workflow.actions.sendmessage',       label: 'Send Message' },
+  send_email:       { id: 'is.workflow.actions.sendemail',         label: 'Send Email' },
+  make_pdf:         { id: 'is.workflow.actions.printpdfdocument',  label: 'Make PDF' },
+  save_file:        { id: 'is.workflow.actions.documentpicker.save', label: 'Save File' },
+  translate:        { id: 'is.workflow.actions.text.translate',    label: 'Translate Text' },
+  detect_language:  { id: 'is.workflow.actions.detectlanguage',    label: 'Detect Language' },
+  dictionary:       { id: 'is.workflow.actions.dictionary',        label: 'Dictionary' },
+  get_dict_value:   { id: 'is.workflow.actions.getvalueforkey',    label: 'Get Dictionary Value' },
+  format_date:      { id: 'is.workflow.actions.format.date',       label: 'Format Date' },
+  get_date:         { id: 'is.workflow.actions.date',              label: 'Get Current Date' },
+  calculate:        { id: 'is.workflow.actions.math',              label: 'Calculate' },
+  encode_url:       { id: 'is.workflow.actions.urlencode',         label: 'URL Encode' },
+  combine_text:     { id: 'is.workflow.actions.text.combine',      label: 'Combine Text' },
+  set_variable:     { id: 'is.workflow.actions.setvariable',       label: 'Set Variable' },
+  get_variable:     { id: 'is.workflow.actions.getvariable',       label: 'Get Variable' },
+  append_note:      { id: 'is.workflow.actions.appendtonote',      label: 'Append to Note' },
+  create_note:      { id: 'is.workflow.actions.shownote',          label: 'Create Note' },
+  choose_from_list: { id: 'is.workflow.actions.choosefromlist',    label: 'Choose from List' },
+  filter_files:     { id: 'is.workflow.actions.getfile',           label: 'Get File' },
+};
+
+const SYSTEM_PROMPT = `You are an expert Apple Siri Shortcuts developer. Generate a complete, practical Siri Shortcut based on the user's description.
+
+Respond with ONLY valid JSON (no markdown, no code blocks, no extra text). Use this structure:
+
+{
+  "name": "Descriptive Shortcut Name",
+  "description": "What this shortcut does in one sentence",
+  "iconEmoji": "one of: star|lightning|list|calendar|chat|phone|mail|camera|music|map|link|file|translate|alarm|note|share",
+  "iconColor": "one of: blue|purple|red|orange|green|teal|pink|gray",
+  "steps": [
+    {
+      "label": "Human-readable step description",
+      "action": "ACTION_NAME",
+      "params": { ... }
+    }
+  ]
+}
+
+AVAILABLE ACTIONS AND PARAMS:
+
+text: params={"text": "content here"}
+show_result: params={"text": "message to show"}
+ask_input: params={"prompt": "Question?", "inputType": "Text|Number|URL|Date|Time|Date and Time"}
+get_clipboard: params={}
+copy_clipboard: params={"text": "content to copy"}
+open_url: params={"url": "https://example.com"}
+get_url: params={"url": "https://api.example.com", "method": "GET"}
+notification: params={"title": "Title", "body": "Message body"}
+add_reminder: params={"text": "Reminder text"}
+add_event: params={"title": "Event title"}
+open_app: params={"appName": "Safari", "bundleId": "com.apple.mobilesafari"}
+share: params={}
+wait: params={"seconds": 2}
+if: params={"condition": "contains", "value": "test"}
+end_if: params={}
+repeat_start: params={"count": 3}
+repeat_end: params={}
+search_web: params={"engine": "Google", "query": "search term"}
+send_message: params={"recipient": "Contact Name", "message": "Message text"}
+send_email: params={"to": "email@example.com", "subject": "Subject", "body": "Body text"}
+translate: params={"text": "text to translate", "to": "Spanish"}
+detect_language: params={"text": "text to detect"}
+get_date: params={}
+calculate: params={"operand1": 10, "operation": "+|-|×|÷", "operand2": 5}
+combine_text: params={"separator": " "}
+set_variable: params={"name": "variableName"}
+get_variable: params={"name": "variableName"}
+append_note: params={"noteTitle": "My Log", "text": "content"}
+choose_from_list: params={"list": ["Option 1", "Option 2", "Option 3"]}
+
+IMPORTANT RULES:
+- Generate 4-12 steps
+- Pick the most fitting iconEmoji and iconColor
+- Make the shortcut practical and complete — it should actually work when imported
+- The "label" field should be clear and describe what that specific step does`;
+
+// ── State ──────────────────────────────────────────────────────────────────
+
+let currentShortcutData = null;
+
+// ── API Key ────────────────────────────────────────────────────────────────
+
+function loadKey() {
+  return localStorage.getItem('anthropic_key') || '';
+}
+
+function saveKey(key) {
+  localStorage.setItem('anthropic_key', key.trim());
+  updateKeyBadge();
+}
+
+function updateKeyBadge() {
+  const key = loadKey();
+  const badge = document.getElementById('apiBadge');
+  if (key && key.startsWith('sk-ant-')) {
+    badge.textContent = 'Set ✓';
+    badge.className = 'api-badge set';
+  } else {
+    badge.textContent = 'Not set';
+    badge.className = 'api-badge';
+  }
+}
+
+// ── UI Setup ───────────────────────────────────────────────────────────────
+
+document.getElementById('apiToggle').addEventListener('click', () => {
+  const body = document.getElementById('apiBody');
+  const chevron = document.getElementById('apiChevron');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+  if (!isOpen) {
+    document.getElementById('apiKeyInput').value = loadKey();
+  }
+});
+
+document.getElementById('saveKeyBtn').addEventListener('click', () => {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val) return;
+  saveKey(val);
+  document.getElementById('apiBody').classList.remove('open');
+  document.getElementById('apiChevron').classList.remove('open');
+  setStatus('success', 'API key saved!');
+  setTimeout(() => setStatus('', ''), 2000);
+});
+
+const examplesEl = document.getElementById('examples');
+EXAMPLES.forEach(ex => {
+  const btn = document.createElement('button');
+  btn.className = 'example-chip';
+  btn.textContent = ex.length > 60 ? ex.slice(0, 57) + '…' : ex;
+  btn.title = ex;
+  btn.addEventListener('click', () => {
+    document.getElementById('promptInput').value = ex;
+    document.getElementById('promptInput').focus();
+  });
+  examplesEl.appendChild(btn);
+});
+
+document.getElementById('generateBtn').addEventListener('click', generate);
+document.getElementById('downloadBtn').addEventListener('click', downloadShortcut);
+document.getElementById('regenBtn').addEventListener('click', generate);
+
+// ── Status helper ──────────────────────────────────────────────────────────
+
+function setStatus(type, msg) {
+  const el = document.getElementById('status');
+  el.className = 'status' + (type ? ` visible ${type}` : '');
+  if (!type) { el.innerHTML = ''; return; }
+  const icon = type === 'loading'
+    ? '<div class="spinner"></div>'
+    : type === 'error' ? '⚠️' : '✅';
+  el.innerHTML = `${icon} <span>${msg}</span>`;
+}
+
+// ── Generate ───────────────────────────────────────────────────────────────
+
+async function generate() {
+  const key = loadKey();
+  if (!key || !key.startsWith('sk-ant-')) {
+    // Auto-open API key section
+    document.getElementById('apiBody').classList.add('open');
+    document.getElementById('apiChevron').classList.add('open');
+    setStatus('error', 'Please add your Anthropic API key first.');
+    return;
+  }
+
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) {
+    setStatus('error', 'Please describe the shortcut you want to build.');
+    return;
+  }
+
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('resultCard').classList.remove('visible');
+  setStatus('loading', 'Claude is designing your shortcut…');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-7',
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const msg = err?.error?.message || `API error ${response.status}`;
+      throw new Error(msg);
+    }
+
+    const data = await response.json();
+    const raw = data.content?.[0]?.text || '';
+
+    // Extract JSON from response (handle any stray markdown)
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No valid JSON returned by model.');
+
+    const shortcut = JSON.parse(jsonMatch[0]);
+    if (!shortcut.name || !shortcut.steps?.length) {
+      throw new Error('Invalid shortcut structure returned.');
+    }
+
+    currentShortcutData = shortcut;
+    renderResult(shortcut);
+    setStatus('success', `Shortcut ready — ${shortcut.steps.length} actions generated.`);
+    setTimeout(() => setStatus('', ''), 3000);
+
+  } catch (e) {
+    console.error(e);
+    setStatus('error', e.message || 'Something went wrong. Check your API key and try again.');
+  } finally {
+    document.getElementById('generateBtn').disabled = false;
+  }
+}
+
+// ── Render result ──────────────────────────────────────────────────────────
+
+function renderResult(shortcut) {
+  const colorKey = shortcut.iconColor || 'blue';
+  const color = ICON_COLORS[colorKey] || ICON_COLORS.blue;
+  const emoji = ICON_EMOJIS[shortcut.iconEmoji] || '⚡';
+
+  const iconEl = document.getElementById('shortcutIcon');
+  iconEl.style.background = `linear-gradient(135deg, ${color.hex}, ${adjustColor(color.hex, -30)})`;
+  iconEl.textContent = emoji;
+  iconEl.style.fontSize = '24px';
+
+  document.getElementById('shortcutName').textContent = shortcut.name;
+  document.getElementById('shortcutDesc').textContent = shortcut.description || '';
+
+  const stepsEl = document.getElementById('steps');
+  stepsEl.innerHTML = '';
+  shortcut.steps.forEach((step, i) => {
+    const actionInfo = ACTION_MAP[step.action] || { id: step.action, label: step.action };
+    const div = document.createElement('div');
+    div.className = 'step';
+    div.innerHTML = `
+      <div class="step-num">${i + 1}</div>
+      <div class="step-info">
+        <div class="step-label">${escHtml(step.label)}</div>
+        <div class="step-action">${escHtml(actionInfo.label)}</div>
+      </div>`;
+    stepsEl.appendChild(div);
+  });
+
+  document.getElementById('resultCard').classList.add('visible');
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function adjustColor(hex, amount) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, Math.min(255, (num >> 16) + amount));
+  const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + amount));
+  const b = Math.max(0, Math.min(255, (num & 0xff) + amount));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+// ── Plist generation ───────────────────────────────────────────────────────
+
+function escXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function textToken(str) {
+  return {
+    Value: { string: str },
+    WFSerializationType: 'WFTextTokenString',
+  };
+}
+
+function buildActionPlist(step) {
+  const actionInfo = ACTION_MAP[step.action];
+  if (!actionInfo) return null;
+  const id = actionInfo.id;
+  const p = step.params || {};
+  let params = {};
+
+  switch (step.action) {
+    case 'text':
+      params = { WFTextActionText: textToken(p.text || '') };
+      break;
+    case 'show_result':
+      params = { Text: textToken(p.text || '') };
+      break;
+    case 'ask_input':
+      params = {
+        WFAskActionPrompt: textToken(p.prompt || 'Enter a value'),
+        WFInputType: p.inputType || 'Text',
+      };
+      break;
+    case 'get_clipboard':
+      params = {};
+      break;
+    case 'copy_clipboard':
+      params = { WFInput: textToken(p.text || '') };
+      break;
+    case 'open_url':
+      params = { WFInput: textToken(p.url || 'https://example.com') };
+      break;
+    case 'get_url':
+      params = {
+        WFURL: textToken(p.url || ''),
+        WFHTTPMethod: p.method || 'GET',
+      };
+      break;
+    case 'notification':
+      params = {
+        WFNotificationActionTitle: p.title || 'Notification',
+        WFNotificationActionBody: textToken(p.body || ''),
+      };
+      break;
+    case 'add_reminder':
+      params = { WFRemindMeString: textToken(p.text || '') };
+      break;
+    case 'add_event':
+      params = { WFCalendarItemTitle: textToken(p.title || 'New Event') };
+      break;
+    case 'open_app':
+      params = {
+        WFAppIdentifier: p.bundleId || 'com.apple.mobilesafari',
+        WFAppName: p.appName || 'Safari',
+      };
+      break;
+    case 'share':
+      params = {};
+      break;
+    case 'wait':
+      params = { WFDelayTime: p.seconds || 1 };
+      break;
+    case 'if':
+      params = {
+        WFControlFlowMode: 0,
+        WFCondition: 4,
+        WFConditionalActionString: p.value || '',
+      };
+      break;
+    case 'end_if':
+      params = { WFControlFlowMode: 2 };
+      break;
+    case 'repeat_start':
+      params = {
+        WFControlFlowMode: 0,
+        WFRepeatCount: p.count || 3,
+      };
+      break;
+    case 'repeat_end':
+      params = { WFControlFlowMode: 1 };
+      break;
+    case 'search_web':
+      params = {
+        WFSearchWebDestination: p.engine || 'Google',
+        WFInputText: textToken(p.query || ''),
+      };
+      break;
+    case 'send_message':
+      params = {
+        WFSendMessageActionPhoneNumber: textToken(p.recipient || ''),
+        WFSendMessageActionMessage: textToken(p.message || ''),
+      };
+      break;
+    case 'send_email':
+      params = {
+        WFSendEmailActionTo: textToken(p.to || ''),
+        WFSendEmailActionSubject: textToken(p.subject || ''),
+        WFSendEmailActionBody: textToken(p.body || ''),
+      };
+      break;
+    case 'translate':
+      params = {
+        WFInputText: textToken(p.text || ''),
+        WFTranslateTextLanguage: p.to || 'Spanish',
+      };
+      break;
+    case 'detect_language':
+      params = { WFInput: textToken(p.text || '') };
+      break;
+    case 'get_date':
+      params = {};
+      break;
+    case 'calculate':
+      params = {
+        WFInput: { Value: { Number: String(p.operand1 || 0) }, WFSerializationType: 'WFTextTokenString' },
+        WFMathOperation: p.operation || '+',
+        WFMathOperand: { Value: { Number: String(p.operand2 || 0) }, WFSerializationType: 'WFTextTokenString' },
+      };
+      break;
+    case 'combine_text':
+      params = {
+        WFTextSeparator: 'Custom',
+        WFTextCustomSeparator: p.separator || ' ',
+      };
+      break;
+    case 'set_variable':
+      params = { WFVariableName: p.name || 'Variable' };
+      break;
+    case 'get_variable':
+      params = { WFVariable: { Value: { VariableName: p.name || 'Variable', Type: 'Named' }, WFSerializationType: 'WFTextTokenAttachment' } };
+      break;
+    case 'append_note':
+      params = {
+        WFNoteTitle: p.noteTitle || 'My Note',
+        WFNoteContents: textToken(p.text || ''),
+      };
+      break;
+    case 'choose_from_list':
+      params = {
+        WFItems: (p.list || ['Option 1', 'Option 2']),
+      };
+      break;
+    default:
+      params = {};
+  }
+
+  return { identifier: id, parameters: params };
+}
+
+function valueToPlist(val, indent) {
+  const pad = '  '.repeat(indent);
+  if (val === null || val === undefined) return `${pad}<string></string>`;
+  if (typeof val === 'boolean') return `${pad}${val ? '<true/>' : '<false/>'}`;
+  if (typeof val === 'number') {
+    return Number.isInteger(val)
+      ? `${pad}<integer>${val}</integer>`
+      : `${pad}<real>${val}</real>`;
+  }
+  if (typeof val === 'string') return `${pad}<string>${escXml(val)}</string>`;
+  if (Array.isArray(val)) {
+    if (val.length === 0) return `${pad}<array/>`;
+    const items = val.map(v => valueToPlist(v, indent + 1)).join('\n');
+    return `${pad}<array>\n${items}\n${pad}</array>`;
+  }
+  if (typeof val === 'object') {
+    const keys = Object.keys(val);
+    if (keys.length === 0) return `${pad}<dict/>`;
+    const entries = keys.map(k =>
+      `${'  '.repeat(indent + 1)}<key>${escXml(k)}</key>\n${valueToPlist(val[k], indent + 1)}`
+    ).join('\n');
+    return `${pad}<dict>\n${entries}\n${pad}</dict>`;
+  }
+  return `${pad}<string>${escXml(String(val))}</string>`;
+}
+
+function generatePlist(shortcut) {
+  const colorKey = shortcut.iconColor || 'blue';
+  const color = ICON_COLORS[colorKey] || ICON_COLORS.blue;
+
+  const builtActions = shortcut.steps
+    .map(step => buildActionPlist(step))
+    .filter(Boolean);
+
+  const actionsXml = builtActions.map(a => {
+    return `    <dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>${escXml(a.identifier)}</string>
+      <key>WFWorkflowActionParameters</key>
+${valueToPlist(a.parameters, 3)}
+    </dict>`;
+  }).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>WFWorkflowActions</key>
+  <array>
+${actionsXml}
+  </array>
+  <key>WFWorkflowClientVersion</key>
+  <string>1343.14</string>
+  <key>WFWorkflowHasShortcutInputVariables</key>
+  <false/>
+  <key>WFWorkflowIcon</key>
+  <dict>
+    <key>WFWorkflowIconGlyphNumber</key>
+    <integer>59704</integer>
+    <key>WFWorkflowIconStartColor</key>
+    <integer>${color.int}</integer>
+  </dict>
+  <key>WFWorkflowImportQuestions</key>
+  <array/>
+  <key>WFWorkflowInputContentItemClasses</key>
+  <array/>
+  <key>WFWorkflowMinimumClientVersion</key>
+  <integer>900</integer>
+  <key>WFWorkflowName</key>
+  <string>${escXml(shortcut.name)}</string>
+  <key>WFWorkflowTypes</key>
+  <array/>
+</dict>
+</plist>`;
+}
+
+// ── Download ───────────────────────────────────────────────────────────────
+
+function downloadShortcut() {
+  if (!currentShortcutData) return;
+  const plist = generatePlist(currentShortcutData);
+  const blob = new Blob([plist], { type: 'application/xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = currentShortcutData.name.replace(/[^a-z0-9 _-]/gi, '').trim() || 'Shortcut';
+  a.href = url;
+  a.download = `${safeName}.shortcut`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+
+updateKeyBadge();
+
+// Open API key panel if not set
+if (!loadKey()) {
+  document.getElementById('apiBody').classList.add('open');
+  document.getElementById('apiChevron').classList.add('open');
+}
+</script>
 </body>
 </html>
