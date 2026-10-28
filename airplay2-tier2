@@ -1,0 +1,40 @@
+#!/bin/sh
+# Sierra 10.12.6: pin and stage private iMac Bridge Tier 2, then approve locally.
+# This contains NO GitHub token. Verify this PUBLIC bootstrap's Git blob SHA first.
+set -eu
+umask 077
+echo 'Checking reviewed project-specific Tier 2 agent source...'
+/usr/bin/python - <<'PY'
+import os, imp, base64, hashlib, py_compile
+home=os.path.expanduser('~')
+root=os.path.join(home,'.imac-bridge')
+old=os.path.join(root,'agent.py')
+if not os.path.isfile(old):raise RuntimeError('Existing iMac Bridge agent is missing; STOP')
+bridge=imp.load_source('existing_imac_bridge',old)
+spec=[
+ ('tier2/root_helper.py','6c1cf96b83ac6aec9eaf835372c25740e277ed6a',os.path.join(root,'tier2-helper.py.next')),
+ ('agent.py','d03b1605ee8e25c016bf7cad96132decf44ffd2a',os.path.join(root,'agent.py.next'))
+]
+for repo_path,expected,dest in spec:
+ data=bridge.api('GET','/contents/'+repo_path+'?ref=main')
+ source=base64.b64decode(data['content'])
+ calculated=hashlib.sha1(('blob %d\0'%len(source))+source).hexdigest()
+ if calculated!=expected:raise RuntimeError('Unexpected GitHub file contents: '+repo_path)
+ with open(dest,'wb') as f:f.write(source)
+ os.chmod(dest,0o600)
+ py_compile.compile(dest,doraise=True)
+ print('PASS: verified and compiled '+repo_path)
+print('Both downloaded source files are pinned and Python 2.7 compatible.')
+PY
+echo 'One local administrator approval is required for project-only privileges.'
+sudo /usr/bin/python "$HOME/.imac-bridge/tier2-helper.py.next" bootstrap
+echo 'Activating reviewed user-level GitHub bridge code...'
+cp -p "$HOME/.imac-bridge/agent.py" "$HOME/.imac-bridge/agent.py.pre-tier2.bak"
+mv "$HOME/.imac-bridge/agent.py.next" "$HOME/.imac-bridge/agent.py"
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+launchctl unload "$PLIST" >/dev/null 2>&1 || true
+launchctl load "$PLIST"
+/usr/bin/sudo -n /usr/local/libexec/ricardo-airplay2/root_helper.py status
+echo 'Processing pending reviewed GitHub task...'
+/usr/bin/python "$HOME/.imac-bridge/agent.py"
+echo 'Tier 2 configured. Monitor GitHub Issues #7 and #8 for results.'
