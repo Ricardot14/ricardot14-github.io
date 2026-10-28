@@ -192,11 +192,61 @@ VXyNWQKV3WKdwrnuWih0hKWbt5DHDAff9Yk2dDLWKMGwsAvgnEzDHNb842m1R0aB
 L6KCq9NjRHDEjf8tM7qtj3u1cIiuPhnPQCjY/MiQu12ZIvVS5ljFH4gxQ+6IHdfG
 jjxDah2nGN59PRbxYvnKkKj9
 -----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICOjCCAcGgAwIBAgIQQvLM2htpN0RfFf51KBC49DAKBggqhkjOPQQDAzBfMQsw
+CQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMTYwNAYDVQQDEy1T
+ZWN0aWdvIFB1YmxpYyBTZXJ2ZXIgQXV0aGVudGljYXRpb24gUm9vdCBFNDYwHhcN
+MjEwMzIyMDAwMDAwWhcNNDYwMzIxMjM1OTU5WjBfMQswCQYDVQQGEwJHQjEYMBYG
+A1UEChMPU2VjdGlnbyBMaW1pdGVkMTYwNAYDVQQDEy1TZWN0aWdvIFB1YmxpYyBT
+ZXJ2ZXIgQXV0aGVudGljYXRpb24gUm9vdCBFNDYwdjAQBgcqhkjOPQIBBgUrgQQA
+IgNiAAR2+pmpbiDt+dd34wc7qNs9Xzjoq1WmVk/WSOrsfy2qw7LFeeyZYX8QeccC
+WvkEN/U0NSt3zn8gj1KjAIns1aeibVvjS5KToID1AZTc8GgHHs3u/iVStSBDHBv+
+6xnOQ6OjQjBAMB0GA1UdDgQWBBTRItpMWfFLXyY4qp3W7usNw/upYTAOBgNVHQ8B
+Af8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAwNnADBkAjAn7qRa
+qCG76UeXlImldCBteU/IvZNeWBj7LRoAasm4PdCkT0RHlAFWovgzJQxC36oCMB3q
+4S6ILuH5px0CMk7yn2xVdOOurvulGu7t0vzCAxHrRVxgED1cf5kDW21USAGKcw==
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICjzCCAhWgAwIBAgIQXIuZxVqUxdJxVt7NiYDMJjAKBggqhkjOPQQDAzCBiDEL
+MAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNl
+eSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMT
+JVVTRVJUcnVzdCBFQ0MgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTAwMjAx
+MDAwMDAwWhcNMzgwMTE4MjM1OTU5WjCBiDELMAkGA1UEBhMCVVMxEzARBgNVBAgT
+Ck5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNleSBDaXR5MR4wHAYDVQQKExVUaGUg
+VVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMTJVVTRVJUcnVzdCBFQ0MgQ2VydGlm
+aWNhdGlvbiBBdXRob3JpdHkwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAAQarFRaqflo
+I+d61SRvU8Za2EurxtW20eZzca7dnNYMYf3boIkDuAUU7FfO7l0/4iGzzvfUinng
+o4N+LZfQYcTxmdwlkWOrfzCjtHDix6EznPO/LlxTsV+zfTJ/ijTjeXmjQjBAMB0G
+A1UdDgQWBBQ64QmG1M8ZwpZ2dEl23OA1xmNjmjAOBgNVHQ8BAf8EBAMCAQYwDwYD
+VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAwNoADBlAjA2Z6EWCNzklwBBHU6+4WMB
+zzuqQhFkoJ2UOQIReVx7Hfpkue4WQrO/isIJxOzksU0CMQDpKmFHjFJKS04YcPbW
+RNZu9YO6bVi9JNlWSOrvxKJGgYhqOkbRqZtNyWHa0V1Xahg=
+-----END CERTIFICATE-----
 ROOT_CERTIFICATES
 chmod 600 "$CA"
 echo 'Checking HTTPS certificate validation before requesting credentials...'
-/usr/bin/curl --cacert "$CA" --connect-timeout 10 --max-time 25 -fsS https://api.github.com/zen >/dev/null || {
-  echo 'STOP: secure GitHub connection failed. No credential was requested or sent.' >&2; exit 1;
+TLS_MODE="$DIR/tls_mode"
+# Try the bundled, carefully selected trust roots first. SecureTransport on older macOS
+# can mishandle --cacert, so also try its native Keychain verification if needed.
+if /usr/bin/curl --cacert "$CA" --connect-timeout 10 --max-time 25 -fsS https://api.github.com/zen >/dev/null 2>&1; then
+  printf '%s\n' bundle > "$TLS_MODE"
+  echo 'HTTPS verified using bundled CA roots.'
+elif /usr/bin/curl --connect-timeout 10 --max-time 25 -fsS https://api.github.com/zen >/dev/null 2>&1; then
+  printf '%s\n' native > "$TLS_MODE"
+  echo 'HTTPS verified using macOS Keychain.'
+else
+  echo 'STOP: neither bundled CA roots nor the native macOS Keychain can verify api.github.com.' >&2
+  echo 'No credentials were requested or sent. Do not use curl -k with your token.' >&2
+  echo 'For diagnostics, run: /usr/bin/curl -Iv https://api.github.com/zen' >&2
+  exit 1
+fi
+chmod 600 "$TLS_MODE"
+tls_curl() {
+  if [ "$(cat "$TLS_MODE")" = bundle ]; then
+    /usr/bin/curl --cacert "$CA" "$@"
+  else
+    /usr/bin/curl "$@"
+  fi
 }
 echo 'Create a GitHub fine-grained token ONLY for Ricardot14/imac-bridge:'
 echo 'Issues: Read and write. Contents: Read-only. No other permissions.'
@@ -213,7 +263,7 @@ case "$TOKEN" in
 esac
 github_get() {
   printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" |
-  /usr/bin/curl --cacert "$CA" -K - -fsS --connect-timeout 10 --max-time 35 \
+  tls_curl -K - -fsS --connect-timeout 10 --max-time 35 \
     -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "$1"
 }
 echo 'Checking private repository and token permissions...'
