@@ -1,0 +1,30 @@
+#!/bin/sh
+# Pinned update of the user-level iMac Bridge; does not alter root privileges.
+set -eu
+/usr/bin/python - <<'PY'
+import os, imp, base64, hashlib, py_compile, tempfile, shutil
+root=os.path.expanduser('~/.imac-bridge')
+path=os.path.join(root,'agent.py')
+if not os.path.isfile(path):raise RuntimeError('Existing bridge not installed')
+old=imp.load_source('imac_bridge_prev',path)
+data=old.api('GET','/contents/agent.py?ref=main')
+source=base64.b64decode(data['content'])
+expected='8cd923d031e84f7e42b51edda791582aa56e016d'
+actual=hashlib.sha1(('blob %d\0'%len(source))+source).hexdigest()
+if actual!=expected:raise RuntimeError('Unexpected GitHub version: STOP without changing files')
+fd,tmp=tempfile.mkstemp(dir=root,prefix='.agent-',suffix='.py')
+try:
+ with os.fdopen(fd,'wb') as out:out.write(source)
+ os.chmod(tmp,0o600)
+ py_compile.compile(tmp,doraise=True)
+ shutil.copy2(path,path+'.pre-tier2-lookup-fix.bak')
+ os.rename(tmp,path)
+ print('Verified updated iMac Bridge agent installed.')
+finally:
+ if os.path.exists(tmp):os.unlink(tmp)
+PY
+/usr/bin/sudo -n /usr/local/libexec/ricardo-airplay2/root_helper.py status
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+launchctl unload "$PLIST" >/dev/null 2>&1 || true
+launchctl load "$PLIST"
+echo "Agent reloaded. Github Issue #11 is the pending MacPorts installation task."
