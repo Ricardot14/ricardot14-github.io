@@ -35,6 +35,4 @@ PLIST="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
 launchctl unload "$PLIST" >/dev/null 2>&1 || true
 launchctl load "$PLIST"
 /usr/bin/sudo -n /usr/local/libexec/ricardo-airplay2/root_helper.py status
-echo 'Processing pending reviewed GitHub task...'
-/usr/bin/python "$HOME/.imac-bridge/agent.py"
-echo 'Tier 2 configured. Monitor GitHub Issues #7 and #8 for results.'
+echo 'Tier 2 configured. launchd RunAtLoad processes the pending GitHub task; monitor Issues #7 and #8.'
