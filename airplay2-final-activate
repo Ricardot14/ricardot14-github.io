@@ -1,0 +1,36 @@
+#!/bin/sh
+# One-time, locally approved activation of AirPlay 2 on the 2009 Sierra iMac.
+# Pinned exact GitHub agent/root-helper source. No arbitrary root shell.
+set -eu
+umask 077
+echo "Verifying final project-specific iMac service controls..."
+/usr/bin/python - <<'PY'
+import os,imp,base64,hashlib,py_compile
+root=os.path.expanduser('~/.imac-bridge')
+oldpath=os.path.join(root,'agent.py')
+if not os.path.isfile(oldpath):raise RuntimeError('STOP: existing bridge missing')
+bridge=imp.load_source('existing_imac_bridge',oldpath)
+sources=[
+ ('tier2/root_helper.py','ed22cc8b579cbfe6f6d22c48891f3a91e4d672bb',os.path.join(root,'airplay2-root-helper.next')),
+ ('agent.py','7702405da24f6227bcd33e388082069fca7fd484',os.path.join(root,'agent-airplay-final.next'))
+]
+for path,expected,dest in sources:
+ data=bridge.api('GET','/contents/'+path+'?ref=main')
+ source=base64.b64decode(data['content'])
+ actual=hashlib.sha1(('blob %d\0'%len(source))+source).hexdigest()
+ if actual!=expected:raise RuntimeError('STOP: source differs from pinned reviewed code: '+path)
+ with open(dest,'wb') as f:f.write(source)
+ os.chmod(dest,0o600)
+ py_compile.compile(dest,doraise=True)
+ print('Verified source and Python 2.7 syntax:',path)
+PY
+echo "Requesting administrator approval for the NQPTP 1.2.9 project service only..."
+sudo /usr/bin/python "$HOME/.imac-bridge/airplay2-root-helper.next" bootstrap
+echo "Activating updated GitHub task agent..."
+cp -p "$HOME/.imac-bridge/agent.py" "$HOME/.imac-bridge/agent.py.pre-airplay-final.bak"
+mv "$HOME/.imac-bridge/agent-airplay-final.next" "$HOME/.imac-bridge/agent.py"
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+launchctl unload "$PLIST" >/dev/null 2>&1 || true
+launchctl load "$PLIST"
+echo "Ready. The iMac will pick up queued GitHub tasks to install NQPTP and enable the user-level Shairport receiver."
+echo "To revoke project privileges: sudo /usr/local/libexec/ricardo-airplay2/root_helper.py revoke"
