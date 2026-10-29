@@ -5,8 +5,8 @@ umask 077
 ROOT="$HOME/.imac-bridge"
 OLD="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
 NEW="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.v4.plist"
-SOURCE_SHA="e19d0b51a4be7d52d1535457131b8f7797ea96a5"
-TEST_SHA="d37afb99e085f336ee79aef7022fd938082e8e94"
+SOURCE_SHA="c0908492e20fcb1a23d31be16b65423aa8936202"
+TEST_SHA="b8890a7d9151fad6e6716b09127263a41972b464"
 BASE="https://api.github.com/repos/Ricardot14/imac-bridge/contents/v4"
 TOKEN="$ROOT/token"; MODE="$ROOT/tls_mode"; CA="$ROOT/roots.pem"
 echo 'iMac Bridge v4 — verified local migration'
