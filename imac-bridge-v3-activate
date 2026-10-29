@@ -26,17 +26,15 @@ done
 if [ -f "$NEW" ]; then echo 'STOP: existing v3 install, no automatic overwrite' >&2; exit 1; fi
 TLS="$(cat "$MODE")"
 case "$TLS" in bundle|native) ;; *) echo 'STOP: unknown configured TLS mode' >&2; exit 1 ;; esac
-CURL_TLS=""
-if [ "$TLS" = bundle ]; then CURL_TLS="--cacert $CA"; fi
 # Credential is passed to curl on stdin, never as a command-line argument.
 # The existing bridge's selected verified TLS mode is preserved.
 if [ "$TLS" = bundle ]; then
  ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
-   /usr/bin/curl --cacert "$CA" -K -fsS --connect-timeout 10 --max-time 35 \
+   /usr/bin/curl --cacert "$CA" -K - -fsS --connect-timeout 10 --max-time 35 \
      -H 'Accept: application/vnd.github+json' "$API" ) > "$ROOT/v3-api.json"
 else
  ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
-   /usr/bin/curl -K -fsS --connect-timeout 10 --max-time 35 \
+   /usr/bin/curl -K - -fsS --connect-timeout 10 --max-time 35 \
      -H 'Accept: application/vnd.github+json' "$API" ) > "$ROOT/v3-api.json"
 fi
 /usr/bin/python - "$ROOT/v3-api.json" "$NEXT" "$BLOB" <<'PY'
@@ -85,7 +83,7 @@ if ! /bin/launchctl load "$NEW"; then
  exit 1
 fi
 sleep 3
-if ! /bin/launchctl list "$LABEL" >/dev/null 2>&1; then
+if ! /bin/launchctl list "$LABEL" 2>/dev/null | /usr/bin/grep -q '"PID" ='; then
  /bin/launchctl unload "$NEW" || true
  /bin/launchctl load "$OLD" || true
  echo 'STOP: v3 launchd verification failed. Previous v2 restored.' >&2
