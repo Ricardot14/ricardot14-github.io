@@ -11,7 +11,7 @@ if not os.path.isfile(path):raise RuntimeError('STOP: existing bridge missing')
 prev=imp.load_source('imac_bridge_existing',path)
 data=prev.api('GET','/contents/agent.py?ref=main')
 raw=base64.b64decode(data['content'])
-expected='b377201375d0d1fae731592cd3beaa4c57a9c181'
+expected='c1a504f8664dd175a24b5ac17f4e39222be2770e'
 actual=hashlib.sha1(('blob %d\0'%len(raw))+raw).hexdigest()
 if actual!=expected:raise RuntimeError('STOP: unexpected source version')
 fd,tmp=tempfile.mkstemp(dir=root,prefix='.agent-xml-',suffix='.py')
