@@ -11,7 +11,7 @@ oldpath=os.path.join(root,'agent.py')
 if not os.path.isfile(oldpath):raise RuntimeError('STOP: existing bridge missing')
 bridge=imp.load_source('existing_imac_bridge',oldpath)
 sources=[
- ('tier2/root_helper.py','ed22cc8b579cbfe6f6d22c48891f3a91e4d672bb',os.path.join(root,'airplay2-root-helper.next')),
+ ('tier2/root_helper.py','272bbef9e69a2daeb806033a064b43ecb51ec666',os.path.join(root,'airplay2-root-helper.next')),
  ('agent.py','7702405da24f6227bcd33e388082069fca7fd484',os.path.join(root,'agent-airplay-final.next'))
 ]
 for path,expected,dest in sources:
