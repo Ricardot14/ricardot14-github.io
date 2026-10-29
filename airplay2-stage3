@@ -12,7 +12,7 @@ if not os.path.isfile(existing):raise RuntimeError('STOP: current iMac Bridge no
 bridge=imp.load_source('imac_bridge_existing',existing)
 plan=[
  ('tier2/root_helper.py','15c30ea7251178ed55b05546045a88f26d1f8a0b',os.path.join(root,'tier2-helper-v3.next')),
- ('agent.py','da7694a607502c49aa6d09cd7741bfa373a2d236',os.path.join(root,'agent-v3.next'))
+ ('agent.py','9d7a7dede55f3737cd2df6d220344d54751eae33',os.path.join(root,'agent-v3.next'))
 ]
 for sourcepath,expected,dest in plan:
  data=bridge.api('GET','/contents/'+sourcepath+'?ref=main')
