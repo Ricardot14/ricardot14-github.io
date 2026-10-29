@@ -1,0 +1,36 @@
+#!/bin/sh
+# Safe Sierra AirPlay 2 receiver diagnostics. Changes only this user's LaunchAgent.
+# Turn on moderate debug logs; no sudo, package installs, or system patching.
+set -eu
+/usr/bin/python - <<'PY'
+import os,plistlib,tempfile
+home=os.path.expanduser('~')
+path=os.path.join(home,'Library','LaunchAgents','com.ricardo.airplay2.receiver.plist')
+binary=os.path.join(home,'.imac-bridge','airplay2-stage','bin','shairport-sync')
+if os.path.islink(path) or not os.path.isfile(path):raise RuntimeError('STOP: expected receiver LaunchAgent missing')
+if not os.path.isfile(binary):raise RuntimeError('STOP: compiled receiver missing')
+cfg=plistlib.readPlist(path)
+if cfg.get('Label')!='com.ricardo.airplay2.receiver':raise RuntimeError('STOP: unexpected service label')
+args=list(cfg.get('ProgramArguments',[]))
+if args!=[binary,'-a','iMac 2009 AirPlay 2','-o','coreaudio'] and args!=[binary,'-a','iMac 2009 AirPlay 2','-o','coreaudio','-vv']:
+ raise RuntimeError('STOP: unexpected receiver command, not modifying')
+if args[-1]!='-vv':
+ cfg['ProgramArguments']=args+['-vv']
+ fd,tmp=tempfile.mkstemp(prefix='.airplay2-',suffix='.plist',dir=os.path.dirname(path))
+ try:
+  os.close(fd)
+  plistlib.writePlist(cfg,tmp)
+  os.chmod(tmp,0o600)
+  os.rename(tmp,path)
+ finally:
+  if os.path.exists(tmp):os.unlink(tmp)
+print('Enabled Shairport Sync diagnostic verbosity -vv; no root changes.')
+PY
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.airplay2.receiver.plist"
+/bin/launchctl unload "$PLIST"
+/bin/launchctl load -w "$PLIST"
+echo "Receiver restarted with debug logging."
+/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null || true
+/usr/libexec/ApplicationFirewall/socketfilterfw --getblockall 2>/dev/null || true
+/bin/launchctl list | /usr/bin/grep 'com.ricardo.airplay2.receiver' || true
+echo "Retry the iMac 2009 AirPlay 2 output once from the iPhone. The GitHub diagnostic can then read its receiver.err.log."
