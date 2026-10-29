@@ -13,7 +13,7 @@ NEW="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.v3.plist"
 SRC="$ROOT/bridge_v3.py"
 NEXT="$ROOT/.bridge_v3.next"
 LABEL="com.ricardo.imacbridge.v3"
-BLOB="cb8ee881def3414d89edcc9819a0ad960108d735"
+BLOB="f00ef052d8ba3f55b6e36fce8f6f47fb3aeca1b2"
 API="https://api.github.com/repos/Ricardot14/imac-bridge/contents/v3/bridge_v3.py?ref=main"
 echo "iMac Bridge v3 — verified local activation"
 if [ "$(id -u)" = 0 ]; then echo 'STOP: do not run as root/sudo' >&2; exit 1; fi
