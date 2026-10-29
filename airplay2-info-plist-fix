@@ -1,0 +1,38 @@
+#!/bin/sh
+# Sierra AirPlay 2 /info plist compatibility: user-only agent upgrade and rebuild.
+# No sudo, root modifications, new packages, or unreviewed source execution.
+set -eu
+umask 077
+/usr/bin/python - <<'PY'
+import os,imp,base64,hashlib,py_compile,tempfile,shutil
+root=os.path.expanduser('~/.imac-bridge')
+path=os.path.join(root,'agent.py')
+if not os.path.isfile(path):raise RuntimeError('STOP: bridge not installed')
+old=imp.load_source('previous_imac_agent',path)
+r=old.api('GET','/contents/agent.py?ref=main')
+data=base64.b64decode(r['content'])
+expected='e108bed2af36664cdea8c66f32f7bf30926a9ab5'
+sha=hashlib.sha1(('blob %d\0'%len(data))+data).hexdigest()
+if sha!=expected:raise RuntimeError('STOP: unexpected agent code SHA')
+fd,tmp=tempfile.mkstemp(dir=root,prefix='.agent-info-',suffix='.py')
+try:
+ with os.fdopen(fd,'wb') as f:f.write(data)
+ os.chmod(tmp,0o600)
+ py_compile.compile(tmp,doraise=True)
+ shutil.copy2(path,path+'.pre-info-plist-fix.bak')
+ os.rename(tmp,path)
+ print('PASS: verified pinned AirPlay /info plist fix agent')
+finally:
+ if os.path.exists(tmp):os.unlink(tmp)
+PY
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+/bin/launchctl unload "$PLIST" >/dev/null 2>&1 || true
+/bin/launchctl load "$PLIST"
+echo 'New bridge is active. Starting isolated source rebuild now...'
+/usr/bin/python - <<'PY'
+import os,imp
+path=os.path.expanduser('~/.imac-bridge/agent.py')
+bridge=imp.load_source('airplay_info_rebuilder',path)
+print(bridge.airplay2_build_task('airplay2-source-build'))
+PY
+echo 'Source rebuild launched, with automated embedded-plist verification.'
