@@ -108,8 +108,16 @@ plistlib.writePlist({
 PY
 chmod 600 "$NEW"
 echo 'Switching LaunchAgents (old service kept on disk for rollback)...'
-/bin/launchctl unload "$OLD" || true
+if /bin/launchctl list com.ricardo.imacbridge >/dev/null 2>&1; then
+ if ! /bin/launchctl unload "$OLD"; then
+  rm -f "$NEW"
+  echo 'STOP: could not stop old bridge; it remains active. No overlapping agents.' >&2
+  exit 1
+ fi
+fi
 if ! /bin/launchctl load "$NEW"; then
+ /bin/launchctl unload "$NEW" >/dev/null 2>&1 || true
+ rm -f "$NEW"
  /bin/launchctl load "$OLD" || true
  echo 'STOP: v3 could not load. Previous v2 restored.' >&2
  exit 1
@@ -117,6 +125,7 @@ fi
 sleep 3
 if ! /bin/launchctl list "$LABEL" 2>/dev/null | /usr/bin/grep -q '"PID" ='; then
  /bin/launchctl unload "$NEW" || true
+ rm -f "$NEW"
  /bin/launchctl load "$OLD" || true
  echo 'STOP: v3 launchd verification failed. Previous v2 restored.' >&2
  exit 1
