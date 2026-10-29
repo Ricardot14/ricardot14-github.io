@@ -1,0 +1,105 @@
+#!/bin/sh
+# Finish AirPlay 2 Sierra /info XML correction without rebuilding the application.
+# Reuse the locally compiled user-owned Shairport Sync from the last source build.
+# Verify the actual embedded plist against libplist 2.8 before atomic deployment.
+# No sudo, no network for verification, no system libraries or NQPTP changes.
+set -eu
+umask 077
+BASE="$HOME/.imac-bridge/airplay2-stage"
+BUILD="$(
+/usr/bin/python - "$BASE" <<'PY'
+import os,glob,sys,xml.etree.ElementTree as ET
+base=sys.argv[1]
+candidates=[]
+for d in glob.glob(os.path.join(base,'shairport-build.*')):
+ xml=os.path.join(d,'plists','get_info_response.xml')
+ exe=os.path.join(d,'shairport-sync')
+ c=os.path.join(d,'plists','get_info_response.c')
+ test=os.path.join(d,'verify_info_plist.c')
+ if all(os.path.isfile(x) and not os.path.islink(x) for x in (xml,exe,c,test)):
+  raw=open(xml,'rb').read()
+  if raw.count('<!-- </dict> -->')!=1:continue
+  try:root=ET.fromstring(raw)
+  except ET.ParseError:continue
+  if root.tag!='plist' or len(root)!=1 or root[0].tag!='dict':continue
+  candidates.append((os.path.getmtime(exe),d))
+if not candidates:raise RuntimeError('STOP: corrected compiled Shairport Sync not found; do not deploy')
+print(sorted(candidates,reverse=True)[0][1])
+PY
+)"
+test -n "$BUILD"
+test ! -L "$BUILD"
+echo "Verifying completed source build: $BUILD"
+export PATH="/opt/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PKG_CONFIG_PATH="/opt/local/lib/pkgconfig:/opt/local/share/pkgconfig"
+/opt/local/bin/plistutil -i "$BUILD/plists/get_info_response.xml" -f xml -o - >/dev/null
+/usr/bin/python - "$BUILD/verify_info_plist.c" <<'PY'
+import sys
+p=sys.argv[1];s=open(p,'rb').read()
+old='  plist_err_t err = plist_from_memory(\n'
+new='  plist_format_t format = 0;\n  plist_err_t err = plist_from_memory(\n'
+oldend='    get_info_response_plist_len, &info);'
+newend='    get_info_response_plist_len, &info, &format);'
+if s.count(old)!=1 or s.count(oldend)!=1:
+ raise RuntimeError('STOP: verification source differs from expected version')
+with open(p,'wb') as f:f.write(s.replace(old,new).replace(oldend,newend))
+PY
+cd "$BUILD"
+/usr/bin/clang -I. $(pkg-config --cflags libplist-2.0) \
+  verify_info_plist.c plists/get_info_response.c \
+  $(pkg-config --libs libplist-2.0) -o verify_info_plist
+./verify_info_plist
+VERSION="$(./shairport-sync -V)"
+case "$VERSION" in
+  5.6.2-AirPlay2-smi11*coreaudio*) echo "PASS: $VERSION" ;;
+  *) echo "STOP: unexpected Shairport build version: $VERSION" >&2; exit 1 ;;
+esac
+DEST="$BASE/bin/shairport-sync"
+if [ ! -f "$DEST" ] || [ -L "$DEST" ]; then echo "STOP: expected receiver destination missing or symlinked" >&2; exit 1; fi
+cp "$DEST" "$DEST.before-plist-fix.bak"
+cp "$BUILD/shairport-sync" "$DEST.verified.new"
+chmod 700 "$DEST.verified.new"
+mv -f "$DEST.verified.new" "$DEST"
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.airplay2.receiver.plist"
+if [ ! -f "$PLIST" ] || [ -L "$PLIST" ]; then echo "STOP: receiver LaunchAgent unavailable" >&2; exit 1; fi
+/bin/launchctl unload "$PLIST" >/dev/null 2>&1 || true
+if ! /bin/launchctl load -w "$PLIST"; then
+ echo "STOP: receiver LaunchAgent failed to load; rolling back binary" >&2
+ mv -f "$DEST.before-plist-fix.bak" "$DEST"
+ /bin/launchctl load -w "$PLIST" || true
+ exit 1
+fi
+echo "PASS: verified receiver installed and LaunchAgent restarted"
+/bin/launchctl list | /usr/bin/grep com.ricardo.airplay2.receiver || true
+/usr/sbin/lsof -nP -iTCP:7000 || true
+
+# Keep the existing project-scoped bridge consistent for any future rebuild.
+# This step is optional for playback, but pin and syntax-check the new agent.
+if /usr/bin/python - <<'PY'
+import os,imp,base64,hashlib,py_compile,tempfile,shutil
+p=os.path.expanduser('~/.imac-bridge/agent.py')
+old=imp.load_source('existing_imac_bridge',p)
+data=old.api('GET','/contents/agent.py?ref=main')
+raw=base64.b64decode(data['content'])
+expected='ba60e9fe8d43c19e458221e1ffa8a10a5729ab41'
+actual=hashlib.sha1(('blob %d\0'%len(raw))+raw).hexdigest()
+if actual!=expected:raise RuntimeError('STOP: unexpected GitHub agent SHA')
+fd,tmp=tempfile.mkstemp(dir=os.path.dirname(p),prefix='.agent-verify-',suffix='.py')
+try:
+ with os.fdopen(fd,'wb') as f:f.write(raw)
+ os.chmod(tmp,0o600)
+ py_compile.compile(tmp,doraise=True)
+ shutil.copy2(p,p+'.before-plist-verify.bak')
+ os.rename(tmp,p)
+ print('PASS: updated pinned user-level GitHub agent')
+finally:
+ if os.path.exists(tmp):os.unlink(tmp)
+PY
+then
+ BP="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+ /bin/launchctl unload "$BP" >/dev/null 2>&1 || true
+ /bin/launchctl load "$BP" || true
+else
+ echo "NOTICE: bridge update unavailable, but verified AirPlay receiver is already restarted."
+fi
+echo "NEXT: retry iMac 2009 AirPlay 2 in the iPhone AirPlay selector."
