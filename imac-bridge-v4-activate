@@ -1,0 +1,101 @@
+#!/bin/sh
+# iMac Bridge v4 — local verified migration only. DO NOT use sudo.
+set -eu
+umask 077
+ROOT="$HOME/.imac-bridge"
+OLD="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+NEW="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.v4.plist"
+SOURCE_SHA="e19d0b51a4be7d52d1535457131b8f7797ea96a5"
+TEST_SHA="d37afb99e085f336ee79aef7022fd938082e8e94"
+BASE="https://api.github.com/repos/Ricardot14/imac-bridge/contents/v4"
+TOKEN="$ROOT/token"; MODE="$ROOT/tls_mode"; CA="$ROOT/roots.pem"
+echo 'iMac Bridge v4 — verified local migration'
+if [ "$(id -u)" = 0 ]; then echo 'STOP: never run as sudo/root' >&2; exit 1; fi
+if [ "$(sw_vers -productVersion)" != 10.12.6 ] || [ "$(sysctl -n hw.model)" != "iMac10,1" ]; then
+ echo 'STOP: requires iMac10,1 with Sierra 10.12.6' >&2; exit 1
+fi
+for f in "$ROOT/agent.py" "$TOKEN" "$MODE" "$CA" "$OLD"; do
+ if [ ! -f "$f" ] || [ -L "$f" ]; then echo "STOP: missing or symlinked $f" >&2; exit 1; fi
+done
+if [ -e "$NEW" ] || [ -e "$ROOT/bridge_v4.py" ]; then
+ echo 'STOP: v4 present. Review installation instead of overwriting.' >&2; exit 1
+fi
+if [ -e "$HOME/Library/LaunchAgents/com.ricardo.imacbridge.v3.plist" ]; then
+ echo 'STOP: a v3 service file exists. Resolve it before migrating.' >&2; exit 1
+fi
+TLS="$(cat "$MODE")"
+case "$TLS" in bundle|native) ;; *) echo 'STOP: unsafe TLS mode' >&2; exit 1 ;; esac
+fetch_pinned() {
+ filename="$1"; pin="$2"; output="$3"; maxsize="$4"
+ temp="$ROOT/.v4-$filename.json"
+ url="$BASE/$filename?ref=main"
+ if [ "$TLS" = bundle ]; then
+  ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
+    /usr/bin/curl -fsS --connect-timeout 10 --max-time 35 --cacert "$CA" -K - \
+      -H 'Accept: application/vnd.github+json' "$url" ) > "$temp"
+ else
+  ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
+    /usr/bin/curl -fsS --connect-timeout 10 --max-time 35 -K - \
+      -H 'Accept: application/vnd.github+json' "$url" ) > "$temp"
+ fi
+ /usr/bin/python - "$temp" "$output" "$pin" "$maxsize" <<'PY'
+import base64,hashlib,json,sys
+j=json.load(open(sys.argv[1],'rb'))
+if j.get('encoding')!='base64':sys.exit('STOP: unexpected GitHub encoding')
+raw=base64.b64decode(j['content'])
+sha=hashlib.sha1(('blob %d\0'%len(raw))+raw).hexdigest()
+if sha!=sys.argv[3] or j.get('sha')!=sha or not (2000<len(raw)<int(sys.argv[4])):
+ sys.exit('STOP: unexpected source content/hash')
+with open(sys.argv[2],'wb') as f:f.write(raw)
+print('Verified pinned source: '+sha)
+PY
+ rm -f "$temp"
+ chmod 600 "$output"
+}
+echo 'Verifying signed-in repository access and pinned source...'
+fetch_pinned bridge_v4.py "$SOURCE_SHA" "$ROOT/.bridge-v4-pending" 25000
+fetch_pinned test_bridge_v4.py "$TEST_SHA" "$ROOT/test_bridge_v4.py" 12000
+/usr/bin/python -m py_compile "$ROOT/.bridge-v4-pending"
+/usr/bin/python -m py_compile "$ROOT/test_bridge_v4.py"
+mv "$ROOT/.bridge-v4-pending" "$ROOT/bridge_v4.py"
+if ! /usr/bin/python "$ROOT/bridge_v4.py" status; then
+ rm -f "$ROOT/bridge_v4.py"; echo 'STOP: preflight failed; old agent unchanged' >&2; exit 1
+fi
+echo 'Running offline Python 2.7 security tests...'
+if ! /usr/bin/python "$ROOT/test_bridge_v4.py"; then
+ rm -f "$ROOT/bridge_v4.py"; echo 'STOP: tests failed; old agent unchanged' >&2; exit 1
+fi
+cp -p "$OLD" "$ROOT/v4/previous-launchagent.plist"
+/usr/bin/python - "$ROOT" "$NEW" <<'PY'
+import os,plistlib,sys
+root,path=sys.argv[1:]
+folder=os.path.join(root,'v4')
+plistlib.writePlist({'Label':'com.ricardo.imacbridge.v4',
+ 'ProgramArguments':['/usr/bin/python',os.path.join(root,'bridge_v4.py'),'run'],
+ 'WorkingDirectory':root,'RunAtLoad':True,'KeepAlive':True,'ThrottleInterval':30,
+ 'StandardOutPath':os.path.join(folder,'agent.out.log'),
+ 'StandardErrorPath':os.path.join(folder,'agent.err.log')},path)
+PY
+chmod 600 "$NEW"
+echo 'Switching LaunchAgents. Keeping v2 plist for emergency rollback.'
+if /bin/launchctl list com.ricardo.imacbridge >/dev/null 2>&1; then
+ if ! /bin/launchctl unload "$OLD"; then
+  rm -f "$NEW"; echo 'STOP: cannot unload old bridge' >&2; exit 1
+ fi
+fi
+if ! /bin/launchctl load "$NEW"; then
+ /bin/launchctl unload "$NEW" >/dev/null 2>&1 || true
+ rm -f "$NEW"
+ /bin/launchctl load "$OLD" || true
+ echo 'STOP: v4 load failed, v2 restored' >&2; exit 1
+fi
+sleep 3
+if ! /bin/launchctl list com.ricardo.imacbridge.v4 2>/dev/null | /usr/bin/grep -q '"PID" ='; then
+ /bin/launchctl unload "$NEW" >/dev/null 2>&1 || true
+ rm -f "$NEW"
+ /bin/launchctl load "$OLD" || true
+ echo 'STOP: v4 process missing, restored v2' >&2; exit 1
+fi
+echo 'SUCCESS: v4 running with auto-start at Sierra login.'
+echo 'AirPlay services remain untouched. No SSH listener or admin rights enabled.'
+echo 'Next: on the Mac run /usr/bin/python ~/.imac-bridge/bridge_v4.py pair'
