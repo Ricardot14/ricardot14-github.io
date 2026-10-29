@@ -52,7 +52,7 @@ rm -f "$ROOT/v3-api.json"
 chmod 600 "$NEXT"
 /usr/bin/python -m py_compile "$NEXT"
 # Download the separately pinned offline test suite with the same verified TLS mode.
-TEST_BLOB="ea93ac43fe2f1b2d638ed85dc1ea0e6eba9fb2b8"
+TEST_BLOB="d28a1c710900627a43e5efb98bcf027fc4ab16fa"
 TEST_API="https://api.github.com/repos/Ricardot14/imac-bridge/contents/v3/test_bridge_v3.py?ref=main"
 if [ "$TLS" = bundle ]; then
  ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
