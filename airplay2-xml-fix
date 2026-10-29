@@ -1,0 +1,38 @@
+#!/bin/sh
+# Project-only fix for the malformed upstream AirPlay 2 /info XML template.
+# Upgrades the unprivileged bridge and launches a verified isolated rebuild.
+set -eu
+umask 077
+/usr/bin/python - <<'PY'
+import os,imp,base64,hashlib,py_compile,tempfile,shutil
+root=os.path.expanduser('~/.imac-bridge')
+path=os.path.join(root,'agent.py')
+if not os.path.isfile(path):raise RuntimeError('STOP: existing bridge missing')
+prev=imp.load_source('imac_bridge_existing',path)
+data=prev.api('GET','/contents/agent.py?ref=main')
+raw=base64.b64decode(data['content'])
+expected='b377201375d0d1fae731592cd3beaa4c57a9c181'
+actual=hashlib.sha1(('blob %d\0'%len(raw))+raw).hexdigest()
+if actual!=expected:raise RuntimeError('STOP: unexpected source version')
+fd,tmp=tempfile.mkstemp(dir=root,prefix='.agent-xml-',suffix='.py')
+try:
+ with os.fdopen(fd,'wb') as out:out.write(raw)
+ os.chmod(tmp,0o600)
+ py_compile.compile(tmp,doraise=True)
+ shutil.copy2(path,path+'.pre-xml-template-fix.bak')
+ os.rename(tmp,path)
+ print('PASS: installed pinned AirPlay XML correction agent.')
+finally:
+ if os.path.exists(tmp):os.unlink(tmp)
+PY
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+/bin/launchctl unload "$PLIST" >/dev/null 2>&1 || true
+/bin/launchctl load "$PLIST"
+echo "Triggering verified, user-level AirPlay source rebuild..."
+/usr/bin/python - <<'PY'
+import imp,os
+path=os.path.expanduser('~/.imac-bridge/agent.py')
+agent=imp.load_source('airplay_xml_rebuilder',path)
+print(agent.airplay2_build_task('airplay2-source-build'))
+PY
+echo "Build log: $HOME/.imac-bridge/airplay2-stage/source-build.log"
