@@ -1,4 +1,11 @@
 #!/bin/sh
+# SECURITY HOLD — old v3 generic command runner is NOT approved for deployment.
+# The previously published bootstrapping instructions are superseded.
+# See https://github.com/Ricardot14/imac-bridge/blob/main/docs/security-simplicity-contract.md
+echo 'STOP: iMac Bridge v3 installation is suspended pending command isolation and independent security review.' >&2
+echo 'The existing restricted bridge remains installed and unaffected.' >&2
+exit 1
+
 # One-time verified migration from existing iMac Bridge v2 to adaptive Bridge v3.
 # Use ONLY after comparing this script's SHA-256 with the independently supplied hash.
 # No sudo, no new token prompt, no AirPlay system changes.
