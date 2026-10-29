@@ -1,0 +1,98 @@
+#!/bin/sh
+# One-time verified migration from existing iMac Bridge v2 to adaptive Bridge v3.
+# Use ONLY after comparing this script's SHA-256 with the independently supplied hash.
+# No sudo, no new token prompt, no AirPlay system changes.
+set -eu
+umask 077
+ROOT="$HOME/.imac-bridge"
+TOKEN="$ROOT/token"
+CA="$ROOT/roots.pem"
+MODE="$ROOT/tls_mode"
+OLD="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+NEW="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.v3.plist"
+SRC="$ROOT/bridge_v3.py"
+NEXT="$ROOT/.bridge_v3.next"
+LABEL="com.ricardo.imacbridge.v3"
+BLOB="f09f1cd90eb890d9d4624d10cdb49d1c2e35fa4d"
+API="https://api.github.com/repos/Ricardot14/imac-bridge/contents/v3/bridge_v3.py?ref=main"
+echo "iMac Bridge v3 — verified local activation"
+if [ "$(id -u)" = 0 ]; then echo 'STOP: do not run as root/sudo' >&2; exit 1; fi
+if [ "$(sw_vers -productVersion)" != 10.12.6 ] || [ "$(sysctl -n hw.model)" != "iMac10,1" ]; then
+ echo 'STOP: requires macOS Sierra 10.12.6 on iMac10,1' >&2; exit 1
+fi
+for f in "$TOKEN" "$CA" "$MODE" "$OLD" "$ROOT/agent.py"; do
+ [ -f "$f" ] || { echo "STOP: missing $f" >&2; exit 1; }
+done
+if [ -f "$NEW" ]; then echo 'STOP: existing v3 install, no automatic overwrite' >&2; exit 1; fi
+TLS="$(cat "$MODE")"
+case "$TLS" in bundle|native) ;; *) echo 'STOP: unknown configured TLS mode' >&2; exit 1 ;; esac
+CURL_TLS=""
+if [ "$TLS" = bundle ]; then CURL_TLS="--cacert $CA"; fi
+# Credential is passed to curl on stdin, never as a command-line argument.
+# The existing bridge's selected verified TLS mode is preserved.
+if [ "$TLS" = bundle ]; then
+ ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
+   /usr/bin/curl --cacert "$CA" -K -fsS --connect-timeout 10 --max-time 35 \
+     -H 'Accept: application/vnd.github+json' "$API" ) > "$ROOT/v3-api.json"
+else
+ ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
+   /usr/bin/curl -K -fsS --connect-timeout 10 --max-time 35 \
+     -H 'Accept: application/vnd.github+json' "$API" ) > "$ROOT/v3-api.json"
+fi
+/usr/bin/python - "$ROOT/v3-api.json" "$NEXT" "$BLOB" <<'PY'
+import base64, hashlib, json, sys
+data=json.load(open(sys.argv[1],'rb'))
+if data.get('encoding')!='base64':sys.exit('STOP: invalid GitHub content encoding')
+raw=base64.b64decode(data['content'])
+sha=hashlib.sha1(('blob %d\0'%len(raw))+raw).hexdigest()
+if sha!=sys.argv[3] or data.get('sha')!=sys.argv[3] or not (5000<len(raw)<25000):
+ sys.exit('STOP: pinned bridge blob hash/size mismatch')
+with open(sys.argv[2],'wb') as f:f.write(raw)
+print('Verified v3 Git blob SHA-1: '+sha)
+PY
+rm -f "$ROOT/v3-api.json"
+chmod 600 "$NEXT"
+/usr/bin/python -m py_compile "$NEXT"
+# Preflight executable using its eventual name while loading the existing agent.py.
+if [ -f "$SRC" ]; then echo 'STOP: existing bridge_v3.py, refusing overwrite' >&2; exit 1; fi
+mv "$NEXT" "$SRC"
+if ! /usr/bin/python "$SRC" status; then
+ rm -f "$SRC"
+ echo 'STOP: v3 preflight failed; existing v2 agent untouched' >&2
+ exit 1
+fi
+BACKUP="$ROOT/v3/old-launchagent-backup.plist"
+cp -p "$OLD" "$BACKUP"
+/usr/bin/python - "$ROOT" "$NEW" <<'PY'
+import os,plistlib,sys
+root,pl=sys.argv[1:]
+log=os.path.join(root,'v3')
+plistlib.writePlist({
+ 'Label':'com.ricardo.imacbridge.v3',
+ 'ProgramArguments':['/usr/bin/python',os.path.join(root,'bridge_v3.py'),'run'],
+ 'RunAtLoad':True,'KeepAlive':True,'ThrottleInterval':30,
+ 'WorkingDirectory':root,
+ 'StandardOutPath':os.path.join(log,'agent.log'),
+ 'StandardErrorPath':os.path.join(log,'agent.err')
+},pl)
+PY
+chmod 600 "$NEW"
+echo 'Switching LaunchAgents (old service kept on disk for rollback)...'
+/bin/launchctl unload "$OLD" || true
+if ! /bin/launchctl load "$NEW"; then
+ /bin/launchctl load "$OLD" || true
+ echo 'STOP: v3 could not load. Previous v2 restored.' >&2
+ exit 1
+fi
+sleep 3
+if ! /bin/launchctl list "$LABEL" >/dev/null 2>&1; then
+ /bin/launchctl unload "$NEW" || true
+ /bin/launchctl load "$OLD" || true
+ echo 'STOP: v3 launchd verification failed. Previous v2 restored.' >&2
+ exit 1
+fi
+echo 'SUCCESS: v3 LaunchAgent installed; login persistence enabled.'
+echo 'Old v2 LaunchAgent retained, unloaded, and backed up for rollback.'
+echo 'Enroll Okta Verify locally: /usr/bin/python ~/.imac-bridge/bridge_v3.py enroll'
+echo 'Check: /usr/bin/python ~/.imac-bridge/bridge_v3.py status'
+echo 'Important: phone SSH enrollment is a separate opt-in setup; no SSH listener enabled.'
