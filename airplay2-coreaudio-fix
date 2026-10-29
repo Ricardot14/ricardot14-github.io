@@ -1,0 +1,30 @@
+#!/bin/sh
+# Project-scoped unprivileged bridge update for Sierra CoreAudio compile compatibility.
+# Does not request sudo or change any root-owned files. Pin GitHub blob SHA.
+set -eu
+umask 077
+/usr/bin/python - <<'PY'
+import os, imp, base64, hashlib, py_compile, tempfile, shutil
+path=os.path.expanduser('~/.imac-bridge/agent.py')
+if not os.path.isfile(path):raise RuntimeError('STOP: iMac Bridge agent not found')
+bridge=imp.load_source('imac_bridge_existing',path)
+data=bridge.api('GET','/contents/agent.py?ref=main')
+raw=base64.b64decode(data['content'])
+expected='b13b3627d5f28508568d0894d355938545e50744'
+actual=hashlib.sha1(('blob %d\0'%len(raw))+raw).hexdigest()
+if actual!=expected:raise RuntimeError('STOP: agent checksum mismatch')
+fd,tmp=tempfile.mkstemp(dir=os.path.dirname(path),prefix='.agent-',suffix='.py')
+try:
+ with os.fdopen(fd,'wb') as out:out.write(raw)
+ os.chmod(tmp,0o600)
+ py_compile.compile(tmp,doraise=True)
+ shutil.copy2(path,path+'.pre-sierra-coreaudio.bak')
+ os.rename(tmp,path)
+ print('Verified Sierra CoreAudio bridge update installed.')
+finally:
+ if os.path.exists(tmp):os.unlink(tmp)
+PY
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+launchctl unload "$PLIST" >/dev/null 2>&1 || true
+launchctl load "$PLIST"
+echo 'iMac Bridge reloaded; new Sierra-compatible AirPlay source-build action available.'
