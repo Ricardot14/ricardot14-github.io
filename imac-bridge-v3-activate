@@ -51,12 +51,44 @@ PY
 rm -f "$ROOT/v3-api.json"
 chmod 600 "$NEXT"
 /usr/bin/python -m py_compile "$NEXT"
+# Download the separately pinned offline test suite with the same verified TLS mode.
+TEST_BLOB="ea93ac43fe2f1b2d638ed85dc1ea0e6eba9fb2b8"
+TEST_API="https://api.github.com/repos/Ricardot14/imac-bridge/contents/v3/test_bridge_v3.py?ref=main"
+if [ "$TLS" = bundle ]; then
+ ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
+   /usr/bin/curl --cacert "$CA" -K - -fsS --connect-timeout 10 --max-time 35 \
+     -H 'Accept: application/vnd.github+json' "$TEST_API" ) > "$ROOT/v3-test-api.json"
+else
+ ( printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN")" |
+   /usr/bin/curl -K - -fsS --connect-timeout 10 --max-time 35 \
+     -H 'Accept: application/vnd.github+json' "$TEST_API" ) > "$ROOT/v3-test-api.json"
+fi
+/usr/bin/python - "$ROOT/v3-test-api.json" "$ROOT/test_bridge_v3.py" "$TEST_BLOB" <<'PY'
+import base64,hashlib,json,sys
+data=json.load(open(sys.argv[1],'rb'))
+if data.get('encoding')!='base64':sys.exit('STOP: invalid test encoding')
+raw=base64.b64decode(data['content'])
+sha=hashlib.sha1(('blob %d\0'%len(raw))+raw).hexdigest()
+if sha!=sys.argv[3] or data.get('sha')!=sys.argv[3] or not (2000<len(raw)<10000):
+ sys.exit('STOP: test suite hash/size mismatch')
+with open(sys.argv[2],'wb') as f:f.write(raw)
+print('Verified local test suite blob '+sha)
+PY
+rm -f "$ROOT/v3-test-api.json"
+chmod 600 "$ROOT/test_bridge_v3.py"
+/usr/bin/python -m py_compile "$ROOT/test_bridge_v3.py"
 # Preflight executable using its eventual name while loading the existing agent.py.
 if [ -f "$SRC" ]; then echo 'STOP: existing bridge_v3.py, refusing overwrite' >&2; exit 1; fi
 mv "$NEXT" "$SRC"
 if ! /usr/bin/python "$SRC" status; then
  rm -f "$SRC"
  echo 'STOP: v3 preflight failed; existing v2 agent untouched' >&2
+ exit 1
+fi
+echo 'Running pinned security tests with the Sierra Python 2.7 interpreter...'
+if ! /usr/bin/python "$ROOT/test_bridge_v3.py"; then
+ rm -f "$SRC"
+ echo 'STOP: security test failed; old bridge remains active' >&2
  exit 1
 fi
 BACKUP="$ROOT/v3/old-launchagent-backup.plist"
