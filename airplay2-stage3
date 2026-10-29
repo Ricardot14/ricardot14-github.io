@@ -1,0 +1,35 @@
+#!/bin/sh
+# One-time, locally approved Tier 2 extension for ONLY the AirPlay 2 project.
+# Verified Git blob pins, Python 2.7 syntax validation. No token printed.
+set -eu
+umask 077
+echo "Checking pinned Tier 2 libconfig + AirPlay build extension..."
+/usr/bin/python - <<'PY'
+import os,imp,base64,hashlib,py_compile
+root=os.path.expanduser('~/.imac-bridge')
+existing=os.path.join(root,'agent.py')
+if not os.path.isfile(existing):raise RuntimeError('STOP: current iMac Bridge not found')
+bridge=imp.load_source('imac_bridge_existing',existing)
+plan=[
+ ('tier2/root_helper.py','15c30ea7251178ed55b05546045a88f26d1f8a0b',os.path.join(root,'tier2-helper-v3.next')),
+ ('agent.py','da7694a607502c49aa6d09cd7741bfa373a2d236',os.path.join(root,'agent-v3.next'))
+]
+for sourcepath,expected,dest in plan:
+ data=bridge.api('GET','/contents/'+sourcepath+'?ref=main')
+ raw=base64.b64decode(data['content'])
+ actual=hashlib.sha1(('blob %d\0'%len(raw))+raw).hexdigest()
+ if actual!=expected:raise RuntimeError('STOP: unexpected source contents: '+sourcepath)
+ with open(dest,'wb') as out:out.write(raw)
+ os.chmod(dest,0o600)
+ py_compile.compile(dest,doraise=True)
+ print('Verified and compiled: '+sourcepath)
+PY
+echo "Local administrator approval is required to add exactly one libconfig port action."
+sudo /usr/bin/python "$HOME/.imac-bridge/tier2-helper-v3.next" bootstrap
+echo "Updating the unprivileged GitHub bridge..."
+cp -p "$HOME/.imac-bridge/agent.py" "$HOME/.imac-bridge/agent.py.pre-v3.bak"
+mv "$HOME/.imac-bridge/agent-v3.next" "$HOME/.imac-bridge/agent.py"
+PLIST="$HOME/Library/LaunchAgents/com.ricardo.imacbridge.plist"
+launchctl unload "$PLIST" >/dev/null 2>&1 || true
+launchctl load "$PLIST"
+echo "AirPlay build and libconfig fixed actions now available through GitHub."
